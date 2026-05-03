@@ -10,20 +10,22 @@ const defaultWidth = 1080;
 const defaultHeight = 1920;
 
 const resolveTotalDuration = (props: VideoProps): number => {
-  if (props?.total_duration && props.total_duration > 0) {
-    return props.total_duration;
-  }
   if (!props?.scenes?.length) {
-    return 1;
+    return props?.total_duration || 1;
   }
-  const last = props.scenes.reduce((acc, scene) => Math.max(acc, scene.start + scene.duration), 0);
-  return Math.max(1, last);
+  // Calculate the absolute end time of the last scene
+  const lastSceneEnd = props.scenes.reduce((maxEnd, scene) => {
+    return Math.max(maxEnd, scene.start + scene.duration);
+  }, 0);
+  
+  // Return the larger of the calculated end or the explicit total_duration
+  return Math.max(1, lastSceneEnd, props.total_duration || 0);
 };
 
 const resolveDimensions = (props: VideoProps) => {
-  const width = props?.video?.width;
-  const height = props?.video?.height;
-  if (typeof width === "number" && typeof height === "number" && width > 0 && height > 0) {
+  const width = Number(props?.video?.width);
+  const height = Number(props?.video?.height);
+  if (!isNaN(width) && !isNaN(height) && width > 0 && height > 0) {
     return { width, height };
   }
   return { width: defaultWidth, height: defaultHeight };

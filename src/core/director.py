@@ -18,48 +18,128 @@ def _estimate_duration_seconds(narration: str) -> float:
 
 
 def _audio_duration_seconds(audio_path: str) -> Optional[float]:
-    try:
-        from mutagen import File  # type: ignore
-    except Exception:
+    """Get the duration of an audio file in seconds using mutagen."""
+    if not audio_path or not os.path.exists(audio_path):
         return None
-
+        
     try:
+        # Try as MP3 first
+        if audio_path.lower().endswith(".mp3"):
+            from mutagen.mp3 import MP3
+            audio = MP3(audio_path)
+            if audio.info and audio.info.length:
+                return float(audio.info.length)
+        
+        # Fallback to general file detection
+        from mutagen import File
         audio = File(audio_path)
-        if audio and getattr(audio, "info", None) and getattr(audio.info, "length", None):
-            length = float(audio.info.length)
-            if length > 0:
-                return length
-    except Exception:
-        return None
-
+        if audio is not None and audio.info and hasattr(audio.info, "length"):
+            return float(audio.info.length)
+    except Exception as e:
+        print(f"Error reading audio duration for {audio_path}: {e}")
+        
     return None
 
 
 def _create_placeholder_image(scene_idx: int, prompt: str, out_dir: str, width: int, height: int) -> Optional[str]:
+    """Create a high-quality placeholder image if all generation providers fail."""
     try:
-        from PIL import Image, ImageDraw, ImageFont
+        from PIL import Image, ImageDraw, ImageFont, ImageFilter
     except Exception:
+        # If PIL is missing, we can't do much but return None or a 1x1 dummy
         return None
 
     os.makedirs(out_dir, exist_ok=True)
-    image = Image.new("RGB", (width, height), color=(15, 23, 42))
-    draw = ImageDraw.Draw(image)
-    try:
-        font = ImageFont.load_default()
-    except Exception:
-        font = None
-
-    title = f"Scene {scene_idx}"
-    prompt_text = (prompt or "").encode("ascii", "ignore").decode().strip()
-    if len(prompt_text) > 160:
-        prompt_text = prompt_text[:157] + "..."
-
-    draw.text((40, 40), title, fill=(248, 250, 252), font=font)
-    draw.text((40, 90), prompt_text, fill=(226, 232, 240), font=font)
-
     out_path = os.path.join(out_dir, f"scene{scene_idx}_placeholder.png")
-    image.save(out_path, format="PNG")
-    return out_path
+    
+    try:
+        # Create a nice gradient background (dark blue/slate)
+        base_color = (15, 23, 42)  # Slate 900
+        secondary_color = (30, 41, 59) # Slate 800
+        
+        image = Image.new("RGB", (width, height), color=base_color)
+        draw = ImageDraw.Draw(image)
+        
+        # Simple vertical gradient
+        for y in range(height):
+            r = int(base_color[0] + (secondary_color[0] - base_color[0]) * y / height)
+            g = int(base_color[1] + (secondary_color[1] - base_color[1]) * y / height)
+            b = int(base_color[2] + (secondary_color[2] - base_color[2]) * y / height)
+            draw.line([(0, y), (width, y)], fill=(r, g, b))
+
+        # Try to load a font, fall back to default
+        font_large = None
+        font_small = None
+        try:
+            # Common paths for fonts on Windows/Linux
+            font_paths = [
+                "C:\\Windows\\Fonts\\arial.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/TTF/DejaVuSans.ttf"
+            ]
+            for p in font_paths:
+                if os.path.exists(p):
+                    font_large = ImageFont.truetype(p, 60)
+                    font_small = ImageFont.truetype(p, 30)
+                    break
+        except Exception:
+            pass
+        
+        if not font_large:
+            font_large = ImageFont.load_default()
+        if not font_small:
+            font_small = ImageFont.load_default()
+
+        # Add some 'technical' lines for a structured look
+        draw.rectangle([20, 20, width - 20, height - 20], outline=(51, 65, 85), width=2)
+        draw.line([20, 120, width - 20, 120], fill=(51, 65, 85), width=1)
+
+        title = f"SCENE {scene_idx} - PLACEHOLDER"
+        draw.text((50, 50), title, fill=(248, 250, 252), font=font_large)
+
+        # Wrap prompt text
+        prompt_text = (prompt or "").encode("ascii", "ignore").decode().strip()
+        margin = 60
+        max_width = width - (margin * 2)
+        
+        words = prompt_text.split()
+        lines = []
+        current_line = []
+        for word in words:
+            test_line = " ".join(current_line + [word])
+            # getbbox is modern, textsize is legacy
+            if hasattr(draw, "textbbox"):
+                bbox = draw.textbbox((0, 0), test_line, font=font_small)
+                w = bbox[2] - bbox[0]
+            else:
+                w, _ = draw.textsize(test_line, font=font_small)
+            
+            if w <= max_width:
+                current_line.append(word)
+            else:
+                lines.append(" ".join(current_line))
+                current_line = [word]
+        lines.append(" ".join(current_line))
+        
+        y_offset = 160
+        for line in lines[:15]: # Limit to 15 lines
+            draw.text((margin, y_offset), line, fill=(148, 163, 184), font=font_small)
+            y_offset += 45
+
+        # Final footer
+        footer = "Generation failed. Using fallback asset."
+        draw.text((50, height - 80), footer, fill=(100, 116, 139), font=font_small)
+
+        image.save(out_path, format="PNG")
+        return out_path
+    except Exception:
+        # Last resort: simple solid color image
+        try:
+            image = Image.new("RGB", (width, height), color=(15, 23, 42))
+            image.save(out_path, format="PNG")
+            return out_path
+        except Exception:
+            return None
 
 
 def _format_srt_time(seconds: float) -> str:
@@ -105,7 +185,7 @@ def build_remotion_props(script_path: str = "script.json", assets_dir: str = "as
     missing_images: List[int] = []
     placeholder_images: List[int] = []
     missing_audio: List[int] = []
-    gap_seconds = max(0.0, float(settings.SCENE_GAP_SECONDS))
+    gap_seconds = max(0.5, float(settings.SCENE_GAP_SECONDS))
     min_duration = max(0.1, float(settings.SCENE_MIN_DURATION_SECONDS))
     retry_attempts = max(1, int(settings.IMAGE_RETRY_ATTEMPTS))
     video_width = max(1, int(settings.VIDEO_WIDTH))
@@ -188,6 +268,7 @@ def build_remotion_props(script_path: str = "script.json", assets_dir: str = "as
         "image_size": image_size,
     }
 
+    total_duration = current_time
     video_config = {
         "width": video_width,
         "height": video_height,
@@ -199,7 +280,7 @@ def build_remotion_props(script_path: str = "script.json", assets_dir: str = "as
 
     remotion_props = {
         "scenes": scenes_out,
-        "total_duration": current_time,
+        "total_duration": total_duration,
         "video": video_config,
         "asset_report": asset_report,
         "subtitles": srt_path,

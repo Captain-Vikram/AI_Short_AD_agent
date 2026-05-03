@@ -22,8 +22,11 @@ const resolveMediaPath = (value?: string | null) => {
   const normalized = value.replace(/\\/g, "/");
   const assetIndex = normalized.indexOf("assets/");
   const relative = assetIndex >= 0 ? normalized.slice(assetIndex) : normalized;
-  return staticFile(relative);
+  // Ensure we don't have leading slash for staticFile
+  const cleanRelative = relative.startsWith("/") ? relative.slice(1) : relative;
+  return staticFile(cleanRelative);
 };
+
 
 type DesignConfig = {
   bg_color?: string;
@@ -310,32 +313,38 @@ const SceneLayer: React.FC<SceneLayerProps> = ({ scene, durationFrames, design }
   const imageSrc = resolveMediaPath(scene.image);
   const audioSrc = resolveMediaPath(scene.audio);
 
-  const fadeFrames = Math.max(1, Math.round(durationFrames * 0.15));
-  const sceneOpacity = interpolate(
+  // Advanced Audio Fading: Exponential curve for natural sound
+  // Fade duration is very short (3 frames) to maximize narration clarity
+  const fadeFrames = 3;
+  const audioGain = design.audio_gain ?? 1.4;
+  
+  const volume = interpolate(
     frame,
     [0, fadeFrames, durationFrames - fadeFrames, durationFrames],
+    [0, 1, 1, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.4, 0, 0.2, 1), // Smooth S-curve
+    }
+  ) * audioGain;
+
+  // Visual Fade: Slightly longer for "cinematic" transitions
+  const visualFadeFrames = 6;
+  const opacity = interpolate(
+    frame,
+    [0, visualFadeFrames, durationFrames - visualFadeFrames, durationFrames],
     [0, 1, 1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
-  const audioVolume = interpolate(
-    frame,
-    [0, fadeFrames, durationFrames - fadeFrames, durationFrames],
-    [0, design.audio_gain || 1.4, design.audio_gain || 1.4, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
   return (
-    <AbsoluteFill style={{ opacity: sceneOpacity }}>
-      <AbsoluteFill
-        style={{
-          background: design.bg_color,
-        }}
-      />
+    <AbsoluteFill style={{ opacity }}>
+      <AbsoluteFill style={{ background: design.bg_color }} />
 
-      {/* Floating background elements */}
+      {/* Background Polish */}
       {design.floating_elements && (
-        <>
+        <AbsoluteFill>
           {[0, 1, 2, 3].map((i) => (
             <FloatingElement
               key={i}
@@ -346,22 +355,10 @@ const SceneLayer: React.FC<SceneLayerProps> = ({ scene, durationFrames, design }
               size={40 + i * 20}
             />
           ))}
-          <ShapeAccent
-            frame={frame}
-            durationFrames={durationFrames}
-            color={design.secondary_color || "#1e293b"}
-            position="top-right"
-          />
-          <ShapeAccent
-            frame={frame}
-            durationFrames={durationFrames}
-            color={design.accent_color || "#3b82f6"}
-            position="bottom-left"
-          />
-        </>
+        </AbsoluteFill>
       )}
 
-      {/* Image layer */}
+      {/* Core Content */}
       {imageSrc && (
         <ImageLayer
           frame={frame}
@@ -372,7 +369,7 @@ const SceneLayer: React.FC<SceneLayerProps> = ({ scene, durationFrames, design }
         />
       )}
 
-      {/* Text overlay */}
+      {/* Subtitles & Overlay */}
       <TextOverlay
         text={scene.narration}
         subtitles={scene.subtitles}
@@ -385,8 +382,8 @@ const SceneLayer: React.FC<SceneLayerProps> = ({ scene, durationFrames, design }
         showBadge={design.show_badge !== false}
       />
 
-      {/* Audio */}
-      {audioSrc && <Audio src={audioSrc} volume={audioVolume} />}
+      {/* Refined Audio Engine */}
+      {audioSrc && <Audio src={audioSrc} volume={volume} />}
     </AbsoluteFill>
   );
 };
@@ -409,3 +406,4 @@ export const VideoEnhanced: React.FC<VideoProps> = ({ scenes, design: designProp
     </AbsoluteFill>
   );
 };
+

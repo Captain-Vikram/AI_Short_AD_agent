@@ -14,6 +14,7 @@ Complete guide to all documentation files. Start here to find what you need.
 | **Get API keys?**           | [API_KEYS.md](API_KEYS.md)                   | 5-20 min |
 | **Customize video design?** | [TEMPLATE_GUIDE.md](TEMPLATE_GUIDE.md)       | 10 min   |
 | **Understand structure?**   | [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | 5 min    |
+| **See recent changes?**     | [CHANGELOG.md](CHANGELOG.md)                 | 5 min    |
 
 ---
 

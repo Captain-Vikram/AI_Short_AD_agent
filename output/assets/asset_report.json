@@ -1,11 +1,17 @@
 {
   "total_scenes": 6,
-  "missing_images": [],
-  "placeholder_images": [],
+  "missing_images": [
+    3,
+    5
+  ],
+  "placeholder_images": [
+    3,
+    5
+  ],
   "missing_audio": [],
-  "images_generated": 6,
+  "images_generated": 4,
   "audio_generated": 6,
-  "gap_seconds": 0.2,
+  "gap_seconds": 0.5,
   "min_duration_seconds": 1.0,
   "image_retry_attempts": 3,
   "video_width": 1080,

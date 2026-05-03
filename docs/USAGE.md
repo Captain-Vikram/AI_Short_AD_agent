@@ -501,6 +501,51 @@ python agents.py render
 
 ---
 
+### 7. Custom Ads with Market Signals 📉
+
+**Purpose:** Use real-time market data to make ads feel "live" and "urgent".
+
+**Command:**
+
+```bash
+# Provide a JSON file with market data (prices, trends, tickers)
+python agents.py copywriter --market-data scripts/example1.json
+```
+
+**What it does:**
+
+- The Copywriter reads the market data (like `example1.json`).
+- It weaves specific details (e.g., "Nasdaq-100 at 27303", "Nvidia above $5T") into the script.
+- It combines these "signals" with the proven psychological patterns found by the Strategist.
+
+**Full Custom Pipeline:**
+
+```bash
+python agents.py all --market-data scripts/example2.json --render
+```
+
+---
+
+### 8. Advanced Recursive Research 🕵️‍♂️
+
+**Purpose:** Go beyond simple keywords. Follow market "leads" like a professional investigator.
+
+**Command:**
+
+```bash
+# Triggers the Discovery -> Reasoning -> Deep-Dive loop
+python agents.py all --query "AI Stocks" --multi-source --render
+```
+
+**What it does (The "Advanced" Logic):**
+
+1.  **Discovery Phase**: The engine uses Google Search to find what's currently trending regarding your query.
+2.  **Reasoning Phase**: An LLM analyzes the search results to find **Specific Tickers** (e.g., "NVDA"), **Key Influencers**, and **Controversial Topics**.
+3.  **Deep-Dive Phase**: Instead of just searching for "AI Stocks", the engine automatically launches new searches for the discovered tickers and influencers on YouTube, X, and Reddit.
+4.  **Master Synthesis**: All these disparate signals are combined into a high-confidence Market Signal JSON that drives the ad script.
+
+---
+
 ## Output Files
 
 ### Directory Structure

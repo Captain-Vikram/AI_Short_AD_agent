@@ -1,4 +1,4 @@
-"""TTS helper with Edge TTS (default) and ElevenLabs fallback.
+"""TTS helper with ElevenLabs (default) and Edge TTS fallback.
 
 Usage:
     from src.media.tts import synthesize
@@ -83,24 +83,32 @@ def synthesize(text: str, out_path: str) -> Tuple[str, List[Dict[str, Any]]]:
     settings = get_settings()
     logger = get_logger(__name__, log_file=settings.RUN_LOG_FILE)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    primary = settings.TTS_PROVIDER or "edge-tts"
+    primary = settings.TTS_PROVIDER or "elevenlabs"
+    fallback = settings.TTS_FALLBACK
     logger.info("TTS: using primary provider %s", primary)
+
+    def _call_provider(provider: str) -> List[Dict[str, Any]]:
+        if provider == "edge-tts":
+            return synthesize_edge(text, out_path)
+        if provider == "elevenlabs":
+            return synthesize_elevenlabs(text, out_path)
+        raise ValueError(f"Unknown TTS provider: {provider}")
+
     try:
-        if primary == "edge-tts":
-            subs = synthesize_edge(text, out_path)
-            return out_path, subs
-        if primary == "elevenlabs":
-            subs = synthesize_elevenlabs(text, out_path)
-            return out_path, subs
-    except Exception:
-        # try fallback
-        if settings.TTS_FALLBACK and "elevenlabs" in (settings.TTS_FALLBACK or "") and settings.ELEVENLABS_API_KEY:
-            logger.warning("TTS: primary provider failed, falling back to ElevenLabs")
-            subs = synthesize_elevenlabs(text, out_path)
-            return out_path, subs
+        subs = _call_provider(primary)
+        return out_path, subs
+    except Exception as e:
+        if fallback and fallback != primary:
+            logger.warning("TTS: primary provider %s failed (%s), falling back to %s", primary, e, fallback)
+            try:
+                subs = _call_provider(fallback)
+                return out_path, subs
+            except Exception as fe:
+                logger.error("TTS: fallback provider %s also failed: %s", fallback, fe)
         raise
 
     return out_path, []
+
 
 
 if __name__ == "__main__":

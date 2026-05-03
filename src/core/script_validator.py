@@ -9,13 +9,16 @@ import json
 from pathlib import Path
 from typing import Any, List
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, AliasChoices
 
 
 class SceneSpec(BaseModel):
     scene: int = Field(ge=1)
     narration: str = Field(min_length=1)
-    image_prompt: str = Field(min_length=1)
+    image_prompt: str = Field(
+        min_length=1,
+        validation_alias=AliasChoices("image_prompt", "director's cinematic prompt"),
+    )
 
     @field_validator("narration", "image_prompt")
     @classmethod

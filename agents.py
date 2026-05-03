@@ -336,10 +336,27 @@ def run_strategist(ads_path: str = "output/successful_ads.json", out_path: str =
     sample = ads_list[:sample_size] if isinstance(ads_list, list) else ads_list
 
     prompt = (
-        "You are a marketing strategist. Extract the core marketing angles, hooks, and pain points "
-        "from the following ads sample and return a strict JSON object with keys: `angles`, `hooks`, `pain_points`. "
-        "Each `angle` should be an object with `title`, `description`, and `examples` (list). Only output valid JSON.\n\n"
-        f"Ads sample:\n{json.dumps(sample, ensure_ascii=False)}"
+        "You are a Senior Marketing Strategist and Ad Psychologist. Analyze the following successful ads and extract a deep 'Why/How/What' framework for each unique pattern identified.\n\n"
+        
+        "YOUR TASK:\n"
+        "1. THE 'WHY' (Psychological Triggers): Identify the core human desires being targeted (e.g., Fear of Missing Out, Desire for Status, Need for Security). Explain the psychological mechanism at play.\n"
+        "2. THE 'HOW' (Structure & Pacing): Analyze the hook structure, the visual narrative style (e.g., UGC, cinematic, direct response), and the pacing of the information.\n"
+        "3. THE 'WHAT' (The Offer): Identify the specific product/service, the unique value proposition (UVP), and the call to action (CTA).\n\n"
+        
+        "OUTPUT FORMAT: Return a strict JSON object with these keys:\n"
+        "- `market_insights`: Broad trends across all ads.\n"
+        "- `winning_patterns`: A list of objects, each containing:\n"
+        "  - `pattern_name`: A descriptive name.\n"
+        "  - `psychology`: The 'Why'.\n"
+        "  - `structure`: The 'How'.\n"
+        "  - `offer_details`: The 'What'.\n"
+        "  - `ad_examples`: Short summaries of ads that fit this pattern.\n"
+        "- `angles`: Core marketing angles derived from the ads.\n"
+        "- `hooks`: A list of the most effective hook types found.\n"
+        "- `pain_points`: Specific customer pain points addressed.\n\n"
+        
+        f"Ads sample:\n{json.dumps(sample, ensure_ascii=False)}\n\n"
+        "Only output valid JSON."
     )
 
     system = "You are a helpful marketing analyst."
@@ -361,10 +378,11 @@ def run_strategist(ads_path: str = "output/successful_ads.json", out_path: str =
     return out_path
 
 
-def run_copywriter(marketing_strategy_path: str = "output/marketing_strategy.json", source_text: Optional[str] = None, out_path: str = "output/script.json", duration_seconds: int = 60) -> str:
-    """Generate a strict-JSON script for the Remotion pipeline.
-
-    The output MUST be a JSON array of scenes: [{"scene":1,"narration":"...","image_prompt":"..."},...]
+def run_copywriter(marketing_strategy_path: str = "output/marketing_strategy.json", market_data_path: Optional[str] = None, out_path: str = "output/script.json", duration_seconds: int = 60) -> str:
+    """Generate a high-converting, psychology-driven video script.
+    
+    This agent uses advanced direct-response marketing techniques (AIDA, PAS)
+    to create professional content that avoids 'AI slop'.
     """
     logger = _logger()
     logger.info("Copywriter: loading marketing strategy from %s", marketing_strategy_path)
@@ -374,42 +392,60 @@ def run_copywriter(marketing_strategy_path: str = "output/marketing_strategy.jso
     except Exception:
         strategy = {}
 
-    if source_text is None:
-        logger.info("Copywriter: loading source text from Google Drive")
+    market_data = {}
+    if market_data_path and os.path.exists(market_data_path):
+        logger.info("Copywriter: loading market data from %s", market_data_path)
         try:
-            source_text = fetch_doc_text()
+            with open(market_data_path, "r", encoding="utf-8") as f:
+                market_data = json.load(f)
         except Exception as exc:
-            logger.warning("Copywriter: Google Drive source unavailable; continuing without it: %s", exc)
-            source_text = ""
+            logger.warning("Copywriter: failed to load market data: %s", exc)
 
     prompt = (
-        "You are a professional video copywriter. Using the marketing strategy below and the source text, "
-        "write a highly converting 60-second video script. Output must be a JSON array of scenes with keys: `scene` (int), `narration` (string), and `image_prompt` (string). "
-        "Return ONLY the JSON array—no explanation, markdown, or commentary.\n\n"
-        f"Marketing strategy:\n{json.dumps(strategy, ensure_ascii=False)}\n\nSource text:\n{(source_text or '')}\n\nTarget duration_seconds: {duration_seconds}"
+        "You are a Top 1% Direct-Response Copywriter and Creative Director for high-budget social media ads. "
+        "Your task is to write a script that is indistinguishable from a human expert and engineered for MAXIMUM retention.\n\n"
+        
+        "PHASE 1: THE PATTERN INTERRUPT (Scene 1)\n"
+        "- Open with a 'Great Lead'. Start mid-action or with a counter-intuitive question that shatters the user's scroll.\n"
+        "- DO NOT start with 'Are you tired of...' or 'Introducing...'.\n"
+        "- Example: 'Most people think X is the secret to Y. They are dead wrong.'\n\n"
+        
+        "PHASE 2: THE ADRENALINE LOOP (Scenes 2-4)\n"
+        "- Use 'The Open Loop' technique. Imply a payoff that only comes at the end.\n"
+        "- Use short, punchy sentences (3-5 words) followed by one longer, rhythmic explanation.\n"
+        "- Focus on high-status language. Avoid generic 'Unleash' or 'Empower' slop.\n\n"
+        
+        "PHASE 3: CINEMATIC DIRECTION (Image Prompts)\n"
+        "- Prompts must be MASTERPIECES. Use art-house terminology.\n"
+        "- Keywords: 'Anamorphic flares', 'Kodak Portra 400 aesthetic', 'Negative space', 'Tonal contrast', 'Cyberpunk noir lighting'.\n"
+        "- Each prompt must describe a SPECIFIC moment of motion (e.g., 'Particles suspended in a beam of light', 'Slow-motion droplets on cold steel').\n\n"
+        
+        "TECHNICAL CONSTRAINTS:\n"
+        "- Total narration: 140-160 words (high energy).\n"
+        "- Structure: Exactly 6 scenes.\n"
+        "- Output: Strict JSON array `[{\"scene\": 1, \"narration\": \"...\", \"image_prompt\": \"...\"}, ...]`.\n\n"
+        
+        f"MARKETING STRATEGY (Proven Patterns):\n{json.dumps(strategy, ensure_ascii=False)}\n\n"
+        f"CURRENT MARKET DATA (The 'Signal'):\n{json.dumps(market_data, ensure_ascii=False)}\n\n"
+        "BANNED WORDS: Unlock, unleash, discover, empower, revolutionary, game-changer, in today's world, meet [Product Name].\n\n"
+        "CORE REQUIREMENT: You MUST combine the winning patterns from the strategy with the current market signals. "
+        "If the market data contains specific prices, tickers, or trends, weave them naturally into the narrative to make the ad feel 'LIVE' and 'URGENT'.\n\n"
+        "Return ONLY the JSON array."
     )
 
-    system = "You are a concise scriptwriter for short marketing videos."
-    resp = _call_llm(system, prompt, max_tokens=2048)
+    system = "You are a world-class creative director and copywriter. You produce professional, cinematic marketing scripts."
+    resp = _call_llm(system, prompt, max_tokens=3000)
     cleaned_json = _extract_json(resp)
 
-    # try to parse and validate
     try:
         arr = json.loads(cleaned_json)
         scenes = validate_scene_list(arr)
-        log_json(logger, "Copywriter: validated scenes", scenes)
+        log_json(logger, "Copywriter: validated professional script", scenes)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(scenes, f, ensure_ascii=False, indent=2)
-        logger.info("Copywriter: wrote validated script to %s", out_path)
         return out_path
-    except ValidationError as ve:
-        logger.exception("Copywriter: validation failed: %s", ve)
-        # save raw response for inspection
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(resp)
-        raise
     except Exception as e:
-        logger.exception("Copywriter: failed to parse LLM output: %s", e)
+        logger.exception("Copywriter: failed to generate professional script: %s", e)
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(resp)
         raise
@@ -522,8 +558,64 @@ def run_designer(
     return design_path
 
 
+def run_director_review(script_path: str = "output/script.json", out_path: str = "output/directed_script.json") -> str:
+    """The Director reviews the script to ensure cinematic cohesion and visual flow.
+    
+    This agent takes the raw copy and adds 'Director's Notes', refines image prompts
+    for visual continuity, and ensures the 'Pattern Interrupt' is strong.
+    """
+    logger = _logger()
+    logger.info("Director: Reviewing script for cinematic quality: %s", script_path)
+    
+    with open(script_path, "r", encoding="utf-8") as f:
+        script = json.load(f)
+
+    prompt = (
+        "You are a World-Class Film Director. You have been handed a script by a copywriter. "
+        "Your job is to elevate this into a cinematic masterpiece. You must ensure VISUAL CONTINUITY "
+        "and emotional impact across all scenes.\n\n"
+        
+        "DIRECTOR'S TASKS:\n"
+        "1. VISUAL METAPHOR: Enhance the `image_prompt` of each scene. Ensure they aren't just literal but METAPHORICAL. "
+        "   If the script is about 'growth', don't just show a plant; show 'time-lapse shadows moving across an oak floor as a sprout breaks through'.\n"
+        "2. CINEMATIC CONTINUITY: If a character or setting is established in Scene 1, ensure the following prompts use "
+        "   consistent keywords (e.g., 'The same high-tech laboratory', 'The same woman with neon-blue hair').\n"
+        "3. PACING: Adjust the narration if it feels too long for a single scene. Break it into 'beats'.\n"
+        "4. CAMERA LANGUAGE: Add specific camera directions: 'Dutch angle', 'Slow dolly zoom', 'Rack focus'.\n\n"
+        
+        "OUTPUT REQUIREMENT:\n"
+        "Return a JSON array of the same length. Keep the keys `scene`, `narration`, and `image_prompt`. "
+        "Update the `image_prompt` with your cinematic refinements.\n\n"
+        
+        f"RAW SCRIPT:\n{json.dumps(script, ensure_ascii=False)}\n\n"
+        "Return ONLY the JSON array. No preamble."
+    )
+
+    system = "You are an elite film director and visual storyteller. You think in frames, lighting, and movement."
+    resp = _call_llm(system, prompt, max_tokens=3000)
+    cleaned_json = _extract_json(resp)
+
+    try:
+        directed_scenes = json.loads(cleaned_json)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(directed_scenes, f, ensure_ascii=False, indent=2)
+        logger.info("Director: Script elevated and saved to %s", out_path)
+        return out_path
+    except Exception as e:
+        logger.exception("Director: Failed to refine script: %s", e)
+        # Fallback to original script if refinement fails
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(script, f, ensure_ascii=False, indent=2)
+        return out_path
+
+
 def run_director(script_path: str = "output/script.json", assets_dir: str = "output/assets", remotion_props_path: str = "output/remotion_props.json") -> str:
-    return build_remotion_props(script_path=script_path, assets_dir=assets_dir, remotion_props_path=remotion_props_path)
+    # First, let the Director review and elevate the script
+    directed_script_path = "output/directed_script.json"
+    final_script_path = run_director_review(script_path, directed_script_path)
+    
+    # Then proceed with asset generation using the elevated script
+    return build_remotion_props(script_path=final_script_path, assets_dir=assets_dir, remotion_props_path=remotion_props_path)
 
 
 def _add_render_args(
@@ -555,14 +647,101 @@ def _get_cli_value(args: argparse.Namespace, name: str, fallback: Any) -> Any:
     return getattr(args, name, fallback)
 
 
+from src.media.market_research import run_multi_source_research
+from src.media.web_explorer import discover_market_leads, extract_entities_and_topics
+
+def run_market_intelligence(query: str, out_path: str = "output/market_signals.json") -> str:
+    """Run an advanced Recursive Research Loop: Discovery -> Reasoning -> Deep-Dive -> Distillation."""
+    logger = _logger()
+    logger.info("Market Intelligence: initiating RECURSIVE loop for: %s", query)
+    
+    # 1. DISCOVERY PHASE: Broad web search
+    discovery_results = discover_market_leads(query)
+    
+    # 2. REASONING PHASE: LLM identifies entities and deep-dive targets
+    intelligence_map = extract_entities_and_topics(discovery_results, _call_llm)
+    logger.info("Market Intelligence: reasoning complete. Found entities: %s", intelligence_map)
+    
+    # 3. DEEP-DIVE PHASE: Targeted social research based on discovered entities
+    # We combine the original query with discovered tickers and influencers
+    deep_dive_queries = [query]
+    if intelligence_map.get("tickers"):
+        deep_dive_queries.extend(intelligence_map["tickers"][:3])
+    if intelligence_map.get("influencers"):
+        deep_dive_queries.extend(intelligence_map["influencers"][:2])
+        
+    combined_results = {}
+    platforms = intelligence_map.get("platforms", ["meta", "youtube", "x", "reddit"])
+    
+    for dq in deep_dive_queries:
+        logger.info("Market Intelligence: deep-diving into entity: %s", dq)
+        raw_path = run_multi_source_research(dq, sources=platforms, out_path=f"output/raw_{dq.replace(' ', '_')}.json")
+        if raw_path and os.path.exists(raw_path):
+            with open(raw_path, "r", encoding="utf-8") as f:
+                combined_results[dq] = json.load(f)
+
+    # 4. DISTILLATION PHASE: LLM synthesizes all intelligence into the final Market Signal
+    prompt = (
+        "You are an Elite Intelligence Officer and Market Analyst. You have just completed a recursive web investigation. "
+        "Your task is to synthesize the following diverse data points into a MASTER Market Signal report.\n\n"
+        
+        "THE INVESTIGATION SCOPE:\n"
+        f"- Primary Subject: {query}\n"
+        f"- Discovered Entities: {json.dumps(intelligence_map.get('tickers', []), ensure_ascii=False)}\n"
+        f"- Expert Leads: {json.dumps(intelligence_map.get('influencers', []), ensure_ascii=False)}\n\n"
+        
+        "RAW INTELLIGENCE DATA:\n"
+        f"{json.dumps(combined_results, ensure_ascii=False)[:12000]}\n\n"
+        
+        "REQUIRED FIELDS in JSON (Matches example1.json spec):\n"
+        "- `ticker`: Primary asset ticker.\n"
+        "- `title`: Urgent headline.\n"
+        "- `direction`: 'LONG' or 'SHORT'.\n"
+        "- `confidence_level`: 1-100.\n"
+        "- `sources_weights`: Weighted importance of research channels.\n"
+        "- `Wisdom of Professional Traders`: Deep synthesis of expert sentiment.\n"
+        "- `Key Insights`: High-level strategic takeaways.\n"
+        "- `Trading Recommendation`: Specific tactical execution plan.\n\n"
+        
+        "Only output valid JSON."
+    )
+
+    system = "You are a master of synthesis. You turn disparate web clues into actionable market intelligence."
+    logger.info("Market Intelligence: distilling final report")
+    resp = _call_llm(system, prompt, max_tokens=3000)
+    cleaned_json = _extract_json(resp)
+
+    try:
+        parsed = json.loads(cleaned_json)
+        # Add metadata about the recursive search
+        parsed["_metadata"] = {
+            "search_depth": "recursive",
+            "entities_discovered": intelligence_map,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(parsed, f, ensure_ascii=False, indent=2)
+        logger.info("Market Intelligence: MASTER signal saved to %s", out_path)
+        return out_path
+    except Exception as e:
+        logger.error("Market Intelligence: distillation failed: %s", e)
+        # Fallback to the first deep-dive result if synthesis fails
+        return out_path if os.path.exists(out_path) else ""
+
 def _cli():
     parser = argparse.ArgumentParser(description="Agent scaffolds: researcher, strategist, copywriter, director")
     _add_render_args(parser, include_render_flag=True, suppress_defaults=False)
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("researcher")
+    intel_parser = sub.add_parser("market-intel")
+    intel_parser.add_argument("--query", default="trading", help="Market topic to research")
+
     sub.add_parser("strategist")
-    sub.add_parser("copywriter")
+    copy_parser = sub.add_parser("copywriter")
+    copy_parser.add_argument("--strategy", default="output/marketing_strategy.json", help="Path to marketing strategy")
+    copy_parser.add_argument("--market-data", help="Path to market signal JSON (e.g. scripts/example1.json)")
+    
     director_parser = sub.add_parser("director")
     _add_render_args(director_parser, include_render_flag=True, suppress_defaults=True)
     designer_parser = sub.add_parser("designer")
@@ -575,16 +754,25 @@ def _cli():
     )
     render_parser = sub.add_parser("render")
     _add_render_args(render_parser, include_render_flag=False, suppress_defaults=True)
+    
     all_parser = sub.add_parser("all")
+    all_parser.add_argument("--query", help="Query for researcher/market-intel")
+    all_parser.add_argument("--multi-source", action="store_true", help="Use multi-source market intelligence")
+    all_parser.add_argument("--market-data", help="Path to pre-existing market signal JSON")
     _add_render_args(all_parser, include_render_flag=True, suppress_defaults=True)
 
     args = parser.parse_args()
     if args.command == "researcher":
-        run_researcher()
+        run_researcher(search_query=_get_cli_value(args, "query", None))
+    elif args.command == "market-intel":
+        run_market_intelligence(query=_get_cli_value(args, "query", "trading"))
     elif args.command == "strategist":
         run_strategist()
     elif args.command == "copywriter":
-        run_copywriter()
+        run_copywriter(
+            marketing_strategy_path=_get_cli_value(args, "strategy", "output/marketing_strategy.json"),
+            market_data_path=_get_cli_value(args, "market_data", None)
+        )
     elif args.command == "director":
         props_path = run_director(
             assets_dir=_get_cli_value(args, "assets_dir", "output/assets"),
@@ -615,9 +803,18 @@ def _cli():
             output_path=_get_cli_value(args, "output", None),
         )
     elif args.command == "all":
-        ads = run_researcher()
+        query = _get_cli_value(args, "query", None)
+        ads = run_researcher(search_query=query)
         strat = run_strategist(ads_path=ads)
-        script = run_copywriter(marketing_strategy_path=strat)
+        
+        market_data_path = _get_cli_value(args, "market_data", None)
+        if _get_cli_value(args, "multi_source", False):
+            market_data_path = run_market_intelligence(query=query or "trading")
+            
+        script = run_copywriter(
+            marketing_strategy_path=strat,
+            market_data_path=market_data_path
+        )
         props_path = run_director(
             script_path=script,
             assets_dir=_get_cli_value(args, "assets_dir", "output/assets"),

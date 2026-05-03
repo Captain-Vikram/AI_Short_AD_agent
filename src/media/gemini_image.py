@@ -108,6 +108,21 @@ def _aspect_ratio_to_size(aspect_ratio: Optional[str], base: int = 1280) -> Tupl
     return width, height
 
 
+def is_valid_image(path: str) -> bool:
+    """Check if a file exists and is a valid, non-empty image."""
+    if not path or not os.path.exists(path):
+        return False
+    if os.path.getsize(path) < 1000: # Very small files are likely error pages or corrupt
+        return False
+    try:
+        from PIL import Image
+        with Image.open(path) as img:
+            img.verify()
+        return True
+    except Exception:
+        return False
+
+
 def generate_image(
     prompt: str,
     out_dir: str = "outputs",
@@ -118,120 +133,127 @@ def generate_image(
 ) -> List[str]:
     """Generate image(s) and save them to `out_dir`. Returns list of saved paths.
 
-    - `model` defaults to `GEMINI_IMAGE_MODEL` from settings.
-    - `image_size` accepts Gemini size tokens like `1K`, `2K`, `4K`, or `512`.
-    - `aspect_ratio` is e.g. `16:9`, `1:1`, etc.
+    This function is designed to be 'fail-proof' by cascading through multiple 
+    providers (Gemini -> Pollinations FLUX -> Pollinations Turbo -> Pollinations SDXL).
     """
     settings = get_settings()
     logger = get_logger(__name__, log_file=settings.RUN_LOG_FILE)
     os.makedirs(out_dir, exist_ok=True)
-    model = model or settings.GEMINI_IMAGE_MODEL
-    logger.info("Gemini image: generating with model=%s size=%s aspect=%s", model, image_size or "default", aspect_ratio or "default")
-
-    # Step 0: Expand prompt for better quality
+    
+    primary_model = model or settings.GEMINI_IMAGE_MODEL
     rich_prompt = expand_prompt(prompt)
+    width, height = _aspect_ratio_to_size(aspect_ratio)
 
-    if HAVE_GENAI:
+    # Provider 1: Gemini (SDK or HTTP)
+    if settings.GEMINI_API_KEY:
         try:
-            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            logger.info("Gemini image: attempting Provider 1 (Gemini: %s)", primary_model)
+            if HAVE_GENAI:
+                client = genai.Client(api_key=settings.GEMINI_API_KEY)
+                if "imagen" in primary_model.lower():
+                    cfg = types.GenerateImagesConfig(number_of_images=1, aspect_ratio=aspect_ratio)
+                    response = client.models.generate_images(model=primary_model, prompt=rich_prompt, config=cfg)
+                    saved: List[str] = []
+                    for i, gen_img in enumerate(response.generated_images):
+                        out_path = os.path.join(out_dir, f"{filename_prefix}_{i}.png")
+                        gen_img.image.save(out_path)
+                        if is_valid_image(out_path):
+                            saved.append(out_path)
+                    if saved:
+                        return saved
+                else:
+                    cfg = types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size),
+                    )
+                    response = client.models.generate_content(model=primary_model, contents=[rich_prompt], config=cfg)
+                    saved = []
+                    for i, part in enumerate(response.parts):
+                        if part.inline_data and part.inline_data.mime_type.startswith("image/"):
+                            out_path = os.path.join(out_dir, f"{filename_prefix}_{i}.png")
+                            _save_base64(part.inline_data.data, out_path)
+                            if is_valid_image(out_path):
+                                saved.append(out_path)
+                    if saved:
+                        return saved
             
-            # Determine which method to use based on model name
-            if "imagen" in model.lower():
-                # Use generate_images for Imagen models
-                cfg = types.GenerateImagesConfig(
-                    number_of_images=1,
-                    aspect_ratio=aspect_ratio,
-                    # image_size is not directly in GenerateImagesConfig in some SDK versions, 
-                    # but aspect_ratio is.
-                )
-                response = client.models.generate_images(model=model, prompt=rich_prompt, config=cfg)
-                saved: List[str] = []
-                for i, gen_img in enumerate(response.generated_images):
-                    out_path = os.path.join(out_dir, f"{filename_prefix}_{i}.png")
-                    gen_img.image.save(out_path)
-                    saved.append(out_path)
-                if saved:
-                    logger.info("Gemini image: saved %d image(s) via generate_images", len(saved))
-                    return saved
-            else:
-                # Use generate_content for multimodal models that support IMAGE modality
-                cfg = types.GenerateContentConfig(
-                    response_modalities=["IMAGE"],
-                    image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size),
-                )
-                response = client.models.generate_content(model=model, contents=[rich_prompt], config=cfg)
-                saved: List[str] = []
-                i = 0
-                for part in response.parts:
-                    if part.inline_data and part.inline_data.mime_type.startswith("image/"):
-                        img_data = part.inline_data.data
-                        out_path = os.path.join(out_dir, f"{filename_prefix}_{i}.png")
-                        _save_base64(img_data, out_path)
-                        saved.append(out_path)
-                        i += 1
-                if saved:
-                    logger.info("Gemini image: saved %d image(s) via generate_content", len(saved))
-                    return saved
+            # HTTP Fallback for Gemini
+            endpoint = settings.GEMINI_IMAGE_ENDPOINT or f"https://generativelanguage.googleapis.com/v1beta/models/{primary_model}:generateContent"
+            if "gemini" in primary_model.lower() or settings.GEMINI_IMAGE_ENDPOINT:
+                payload = {
+                    "contents": [{"parts": [{"text": rich_prompt}]}],
+                    "generationConfig": {
+                        "response_modalities": ["IMAGE"],
+                        "image_config": {"image_size": image_size, "aspect_ratio": aspect_ratio}
+                    },
+                }
+                resp = httpx.post(endpoint, json=payload, headers={"x-goog-api-key": settings.GEMINI_API_KEY}, timeout=120)
+                if resp.status_code == 200:
+                    body = resp.json()
+                    parts = body.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                    saved = []
+                    for i, part in enumerate(parts):
+                        b64 = (part.get("inline_data") or {}).get("data")
+                        if b64:
+                            out_path = os.path.join(out_dir, f"{filename_prefix}_http_{i}.png")
+                            _save_base64(b64, out_path)
+                            if is_valid_image(out_path):
+                                saved.append(out_path)
+                    if saved:
+                        return saved
         except Exception as e:
-            logger.warning("Gemini image: SDK generation failed: %s. Falling back.", e)
+            logger.warning("Gemini image: Provider 1 failed: %s", e)
 
-    # Fallback 1: attempt a direct HTTP call (legacy/custom)
+    # Provider 2: Pollinations FLUX (Highly Reliable)
     try:
-        endpoint = settings.GEMINI_IMAGE_ENDPOINT or (
-            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-        )
-        # Only try HTTP if endpoint is specified or it looks like a gemini model
-        if settings.GEMINI_IMAGE_ENDPOINT or "gemini" in model.lower():
-            payload = {
-                "contents": [{"parts": [{"text": rich_prompt}]}],
-                "generationConfig": {
-                    "response_modalities": ["IMAGE"],
-                    "image_config": {"image_size": image_size, "aspect_ratio": aspect_ratio}
-                },
-            }
-            headers = {"Content-Type": "application/json"}
-            if settings.GEMINI_API_KEY:
-                headers["x-goog-api-key"] = settings.GEMINI_API_KEY
-
-            resp = httpx.post(endpoint, json=payload, headers=headers, timeout=120)
-            if resp.status_code == 200:
-                body = resp.json()
-                parts = body.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-                saved = []
-                i = 0
-                for part in parts:
-                    inline = part.get("inline_data") or {}
-                    b64 = inline.get("data")
-                    if b64:
-                        out_path = os.path.join(out_dir, f"{filename_prefix}_{i}.png")
-                        _save_base64(b64, out_path)
-                        saved.append(out_path)
-                        i += 1
-                if saved:
-                    return saved
-    except Exception as e:
-        logger.warning("Gemini image: HTTP fallback failed: %s", e)
-
-    # Fallback 2: Pollinations.ai with FLUX (Better than default)
-    try:
+        logger.info("Gemini image: attempting Provider 2 (Pollinations FLUX)")
         import urllib.parse
-        # Truncate prompt to ~1000 chars to avoid URL length issues
-        safe_prompt = rich_prompt[:1000]
-        encoded_prompt = urllib.parse.quote(safe_prompt)
-        width, height = _aspect_ratio_to_size(aspect_ratio)
-        
-        # Use FLUX model on Pollinations for significantly better quality
-        pollinations_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true"
-        resp = httpx.get(pollinations_url, timeout=60)
-        resp.raise_for_status()
-        out_path = os.path.join(out_dir, f"{filename_prefix}_pollinations.png")
-        with open(out_path, "wb") as f:
-            f.write(resp.content)
-        logger.info("Gemini image: saved image to %s (via Pollinations.ai FLUX fallback)", out_path)
-        return [out_path]
+        encoded_prompt = urllib.parse.quote(rich_prompt[:1000])
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&model=flux&nologo=true&seed={os.urandom(4).hex()}"
+        resp = httpx.get(url, timeout=60)
+        if resp.status_code == 200:
+            out_path = os.path.join(out_dir, f"{filename_prefix}_pollinations_flux.png")
+            with open(out_path, "wb") as f:
+                f.write(resp.content)
+            if is_valid_image(out_path):
+                return [out_path]
     except Exception as e:
-        logger.error("Gemini image: All generation methods failed. Last error: %s", e)
-        return []
+        logger.warning("Gemini image: Provider 2 failed: %s", e)
+
+    # Provider 3: Pollinations Turbo (Alternative)
+    try:
+        logger.info("Gemini image: attempting Provider 3 (Pollinations Turbo)")
+        import urllib.parse
+        encoded_prompt = urllib.parse.quote(rich_prompt[:1000])
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&model=turbo&nologo=true&seed={os.urandom(4).hex()}"
+        resp = httpx.get(url, timeout=60)
+        if resp.status_code == 200:
+            out_path = os.path.join(out_dir, f"{filename_prefix}_pollinations_turbo.png")
+            with open(out_path, "wb") as f:
+                f.write(resp.content)
+            if is_valid_image(out_path):
+                return [out_path]
+    except Exception as e:
+        logger.warning("Gemini image: Provider 3 failed: %s", e)
+
+    # Provider 4: Pollinations SDXL (Final fallback API)
+    try:
+        logger.info("Gemini image: attempting Provider 4 (Pollinations SDXL)")
+        import urllib.parse
+        encoded_prompt = urllib.parse.quote(rich_prompt[:1000])
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&nologo=true&seed={os.urandom(4).hex()}"
+        resp = httpx.get(url, timeout=60)
+        if resp.status_code == 200:
+            out_path = os.path.join(out_dir, f"{filename_prefix}_pollinations_sdxl.png")
+            with open(out_path, "wb") as f:
+                f.write(resp.content)
+            if is_valid_image(out_path):
+                return [out_path]
+    except Exception as e:
+        logger.error("Gemini image: Provider 4 failed: %s", e)
+
+    logger.error("Gemini image: All online generation providers failed for prompt: %s", prompt[:50])
+    return []
 
 
 if __name__ == "__main__":

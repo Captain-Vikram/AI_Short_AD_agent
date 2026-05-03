@@ -31,8 +31,8 @@ class Settings(BaseSettings):
     OPENROUTER_TITLE: Optional[str] = "Internship Agent Dev"
 
     # TTS
-    TTS_PROVIDER: str = "edge-tts"
-    TTS_FALLBACK: Optional[str] = "elevenlabs"
+    TTS_PROVIDER: str = "elevenlabs"
+    TTS_FALLBACK: Optional[str] = "edge-tts"
     EDGE_TTS_VOICE: str = "en-US-AriaNeural"
     EDGE_TTS_LANGUAGE: str = "en-US"
     EDGE_TTS_OUTPUT_FORMAT: str = "audio-24khz-48kbitrate-mono-mp3"

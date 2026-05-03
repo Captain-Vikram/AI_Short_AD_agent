@@ -12,11 +12,25 @@ from config.settings import get_settings
 from src.utils import get_logger, log_json
 
 
-def _resolve_asset_path(asset_path: str, base_dir: Path) -> Path:
+def _resolve_asset_path(asset_path: str | list, base_dir: Path) -> Path:
+    if isinstance(asset_path, list):
+        if not asset_path:
+            return Path()
+        asset_path = asset_path[0]
     path = Path(asset_path)
-    if not path.is_absolute():
-        return base_dir / path
-    return path
+    if path.is_absolute():
+        return path
+    
+    # Try relative to current working directory first
+    if path.exists():
+        return path.resolve()
+        
+    # Try relative to base_dir
+    full_path = base_dir / path
+    if full_path.exists():
+        return full_path.resolve()
+        
+    return full_path
 
 
 def _resolve_npx_executable() -> str:
@@ -45,6 +59,8 @@ def _resolve_remotion_executable(app_dir: Path) -> tuple[str, bool]:
 
     return _resolve_npx_executable(), True
 
+
+import mutagen
 
 def prepare_remotion_assets(
     remotion_app_dir: str | Path,
@@ -86,10 +102,18 @@ def prepare_remotion_assets(
             logger.warning("Remotion: design file not found: %s", design_file)
 
     scenes = props.get("scenes", [])
+    current_time = 0.0
+    
+    # We'll use the gap_seconds from the asset_report if available, otherwise from settings
+    asset_report = props.get("asset_report", {})
+    gap_seconds = float(asset_report.get("gap_seconds", settings.SCENE_GAP_SECONDS))
+    
     for scene in scenes:
+        scene["start"] = current_time
+        
         image = scene.get("image")
         if image:
-            image_path = _resolve_asset_path(str(image), props_base)
+            image_path = _resolve_asset_path(image, props_base)
             if image_path.exists():
                 dest = images_dir / image_path.name
                 shutil.copy2(image_path, dest)
@@ -99,8 +123,9 @@ def prepare_remotion_assets(
                 scene["image"] = None
 
         audio = scene.get("audio")
+        audio_path = None
         if audio:
-            audio_path = _resolve_asset_path(str(audio), props_base)
+            audio_path = _resolve_asset_path(audio, props_base)
             if audio_path.exists():
                 dest = audio_dir / audio_path.name
                 shutil.copy2(audio_path, dest)
@@ -109,7 +134,38 @@ def prepare_remotion_assets(
                 logger.warning("Remotion: audio missing for scene %s: %s", scene.get("scene"), audio_path)
                 scene["audio"] = None
 
+        # Use the duration already in the scene as baseline
+        duration = float(scene.get("duration", 5.0))
+        
+        # Try to get more accurate duration from the actual file
+        if audio_path and audio_path.exists():
+            try:
+                from mutagen.mp3 import MP3
+                from mutagen import File
+                
+                audio_len = None
+                if audio_path.name.lower().endswith(".mp3"):
+                    audio_meta = MP3(audio_path)
+                    if audio_meta and audio_meta.info:
+                        audio_len = audio_meta.info.length
+                
+                if audio_len is None:
+                    audio_meta = File(audio_path)
+                    if audio_meta and audio_meta.info:
+                        audio_len = audio_meta.info.length
+                
+                if audio_len:
+                    logger.info("Remotion: syncing scene %s duration to audio length: %.3fs", scene.get("scene"), audio_len)
+                    duration = audio_len
+            except Exception as e:
+                logger.warning("Could not read audio duration for %s: %s", audio_path, e)
+                
+        scene["duration"] = duration
+        current_time += duration + gap_seconds
+
     props["scenes"] = scenes
+    props["total_duration"] = max(0.1, current_time)
+
     log_json(logger, "Remotion: normalized props", props)
 
     output_path = Path(output_props_path) if output_props_path else (app_dir / "remotion_props.json")
