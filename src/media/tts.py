@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from config.settings import get_settings
 from src.utils import get_logger
@@ -19,7 +19,7 @@ from src.utils import retry_with_backoff
     initial_backoff=2.0,
     logger_name="tts",
 )
-def synthesize_edge(text: str, out_path: str, voice: Optional[str] = None) -> None:
+def synthesize_edge(text: str, out_path: str, voice: Optional[str] = None) -> List[Dict[str, Any]]:
     settings = get_settings()
     logger = get_logger(__name__, log_file=settings.RUN_LOG_FILE)
     voice = voice or settings.EDGE_TTS_VOICE
@@ -28,9 +28,24 @@ def synthesize_edge(text: str, out_path: str, voice: Optional[str] = None) -> No
     except Exception as exc:  # pragma: no cover - runtime import
         raise RuntimeError("edge-tts is not installed") from exc
 
-    communicate = edge_tts.Communicate(text, voice)
-    asyncio.run(communicate.save(out_path))
-    logger.info("TTS: saved Edge audio to %s", out_path)
+    subtitles: List[Dict[str, Any]] = []
+
+    async def _amain() -> None:
+        communicate = edge_tts.Communicate(text, voice, boundary="WordBoundary")
+        with open(out_path, "wb") as f:
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    f.write(chunk["data"])
+                elif chunk["type"] == "WordBoundary":
+                    subtitles.append({
+                        "text": chunk["text"],
+                        "start": chunk["offset"] / 10_000_000,
+                        "end": (chunk["offset"] + chunk["duration"]) / 10_000_000,
+                    })
+
+    asyncio.run(_amain())
+    logger.info("TTS: saved Edge audio to %s with %d word boundaries", out_path, len(subtitles))
+    return subtitles
 
 
 @retry_with_backoff(
@@ -38,7 +53,7 @@ def synthesize_edge(text: str, out_path: str, voice: Optional[str] = None) -> No
     initial_backoff=5.0,
     logger_name="tts",
 )
-def synthesize_elevenlabs(text: str, out_path: str, voice: Optional[str] = None, model: Optional[str] = None) -> None:
+def synthesize_elevenlabs(text: str, out_path: str, voice: Optional[str] = None, model: Optional[str] = None) -> List[Dict[str, Any]]:
     settings = get_settings()
     logger = get_logger(__name__, log_file=settings.RUN_LOG_FILE)
     try:
@@ -54,12 +69,16 @@ def synthesize_elevenlabs(text: str, out_path: str, voice: Optional[str] = None,
     audio = generate(text=text, voice=voice, model=model)
     save(audio, out_path)
     logger.info("TTS: saved ElevenLabs audio to %s", out_path)
+    # ElevenLabs Python library doesn't easily expose word-level timestamps in the basic 'generate' call.
+    # We return empty list for now to avoid breaking the contract.
+    return []
 
 
-def synthesize(text: str, out_path: str) -> str:
+def synthesize(text: str, out_path: str) -> Tuple[str, List[Dict[str, Any]]]:
     """Pick the configured TTS provider and synthesize audio to `out_path`.
 
-    Falls back to `ELEVENLABS` when Edge fails and `TTS_FALLBACK` includes it.
+    Returns:
+        Tuple of (audio_path, list of word-level subtitles)
     """
     settings = get_settings()
     logger = get_logger(__name__, log_file=settings.RUN_LOG_FILE)
@@ -68,20 +87,20 @@ def synthesize(text: str, out_path: str) -> str:
     logger.info("TTS: using primary provider %s", primary)
     try:
         if primary == "edge-tts":
-            synthesize_edge(text, out_path)
-            return out_path
+            subs = synthesize_edge(text, out_path)
+            return out_path, subs
         if primary == "elevenlabs":
-            synthesize_elevenlabs(text, out_path)
-            return out_path
+            subs = synthesize_elevenlabs(text, out_path)
+            return out_path, subs
     except Exception:
         # try fallback
         if settings.TTS_FALLBACK and "elevenlabs" in (settings.TTS_FALLBACK or "") and settings.ELEVENLABS_API_KEY:
             logger.warning("TTS: primary provider failed, falling back to ElevenLabs")
-            synthesize_elevenlabs(text, out_path)
-            return out_path
+            subs = synthesize_elevenlabs(text, out_path)
+            return out_path, subs
         raise
 
-    return out_path
+    return out_path, []
 
 
 if __name__ == "__main__":

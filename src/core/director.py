@@ -146,7 +146,7 @@ def build_remotion_props(script_path: str = "script.json", assets_dir: str = "as
                     logger.info("Director: placeholder image created for scene %s", scene_idx)
 
         audio_path = os.path.join(audio_dir, f"scene_{scene_idx}.mp3")
-        synthesize(narration, audio_path)
+        audio_path, scene_subtitles = synthesize(narration, audio_path)
         if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
             missing_audio.append(scene_idx)
             logger.warning("Director: audio missing/empty for scene %s at %s", scene_idx, audio_path)
@@ -162,6 +162,7 @@ def build_remotion_props(script_path: str = "script.json", assets_dir: str = "as
                 "image": image_path,
                 "audio": audio_path,
                 "narration": narration,
+                "subtitles": scene_subtitles,
                 "start": current_time,
                 "duration": duration,
                 "audio_duration": audio_duration,

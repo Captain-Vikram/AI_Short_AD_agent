@@ -13,7 +13,6 @@ marketing_strategy.json
 script.json
 remotion_props.json
 /assets/
-output/
 node_modules/
 .DS_Store
 cred.json

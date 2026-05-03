@@ -4,19 +4,20 @@
 
 ## 📋 Overview
 
-This tool automates the creation of professional marketing videos by:
+This tool automates the creation of professional marketing videos by orchestrating a team of **CrewAI** agents:
 
-1. **Researching** successful ads using Apify (Meta Ads scraping)
-2. **Strategizing** marketing approaches with AI analysis
-3. **Writing** compelling video scripts with LLM
-4. **Creating** visually stunning designs with design specs
-5. **Directing** asset generation (images & audio)
-6. **Rendering** professional 9:16 vertical videos with Remotion
+1. **Ad Researcher** - Scrapes successful ads using Apify (Meta Ads scraping)
+2. **Marketing Strategist** - Analyzes data to extract hooks and pain points
+3. **Video Copywriter** - Writes compelling 4-6 scene scripts
+4. **Video Director** - Generates media assets (images, audio, and **word-level subtitles**)
+5. **Video Designer** - Creates visual design specifications
 
-The entire pipeline runs as AI agents that work together to produce publication-ready videos in minutes.
+The entire pipeline leverages the **CrewAI** framework for agent orchestration, bridging a Python backend with a React/TypeScript frontend (Remotion) to produce publication-ready vertical videos.
 
 ### ⚡ Key Features
 
+- ✅ **CrewAI Orchestration** - Sophisticated agentic workflow for video production
+- ✅ **Word-Level Subtitles** - Precisely timed "karaoke-style" subtitles extracted from TTS
 - ✅ **Fully Automated** - One command generates complete videos
 - ✅ **Local-First** - Works with local LLMs (LM Studio) for privacy
 - ✅ **Professional Templates** - VideoEnhanced with floating animations
@@ -39,7 +40,7 @@ The entire pipeline runs as AI agents that work together to produce publication-
 
 ```bash
 # Clone/navigate to project
-cd Intership\ agent\ dev
+cd internship-agent-dev
 
 # Create virtual environment
 python -m venv .venv

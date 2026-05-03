@@ -1,7 +1,7 @@
 # Project Structure
 
 ```
-intership-agent-dev/
+internship-agent-dev/
 ├── src/                          # Main source code
 │   ├── __init__.py
 │   ├── core/                     # Core pipeline components

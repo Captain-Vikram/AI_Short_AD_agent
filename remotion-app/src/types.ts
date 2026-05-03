@@ -3,6 +3,7 @@ export type Scene = {
   image: string | null;
   audio: string | null;
   narration: string;
+  subtitles?: { text: string; start: number; end: number }[];
   start: number;
   duration: number;
   image_prompt?: string;

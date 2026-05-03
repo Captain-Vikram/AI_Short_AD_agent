@@ -131,14 +131,50 @@ const ShapeAccent: React.FC<{
   );
 };
 
+const WordLevelSubtitles: React.FC<{
+  subtitles: { text: string; start: number; end: number }[];
+  currentFrame: number;
+  fps: number;
+  textColor: string;
+  accentColor: string;
+}> = ({ subtitles, currentFrame, fps, textColor, accentColor }) => {
+  const currentTime = currentFrame / fps;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px" }}>
+      {subtitles.map((sub, i) => {
+        const isActive = currentTime >= sub.start && currentTime <= sub.end;
+        const isPast = currentTime > sub.end;
+
+        return (
+          <span
+            key={i}
+            style={{
+              color: isActive ? accentColor : isPast ? textColor : `${textColor}88`,
+              transform: isActive ? "scale(1.1)" : "scale(1)",
+              transition: "all 0.1s ease",
+              display: "inline-block",
+            }}
+          >
+            {sub.text}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
 const TextOverlay: React.FC<{
   text: string;
+  subtitles?: { text: string; start: number; end: number }[];
+  currentFrame: number;
+  fps: number;
   position: "bottom" | "center" | "top";
   textColor: string;
   accentColor: string;
   badgeText?: string;
   showBadge: boolean;
-}> = ({ text, position, textColor, accentColor, badgeText, showBadge }) => {
+}> = ({ text, subtitles, currentFrame, fps, position, textColor, accentColor, badgeText, showBadge }) => {
   const positionStyles: Record<string, React.CSSProperties> = {
     bottom: { bottom: 64, left: 0, right: 0 },
     center: { top: "50%", left: 0, right: 0, transform: "translateY(-50%)" },
@@ -183,7 +219,17 @@ const TextOverlay: React.FC<{
           wordWrap: "break-word",
         }}
       >
-        {text}
+        {subtitles && subtitles.length > 0 ? (
+          <WordLevelSubtitles
+            subtitles={subtitles}
+            currentFrame={currentFrame}
+            fps={fps}
+            textColor={textColor}
+            accentColor={accentColor}
+          />
+        ) : (
+          text
+        )}
       </div>
     </div>
   );
@@ -329,6 +375,9 @@ const SceneLayer: React.FC<SceneLayerProps> = ({ scene, durationFrames, design }
       {/* Text overlay */}
       <TextOverlay
         text={scene.narration}
+        subtitles={scene.subtitles}
+        currentFrame={frame}
+        fps={useVideoConfig().fps}
         position={design.text_position || "bottom"}
         textColor={design.text_color || "#f8fafc"}
         accentColor={design.accent_color || "#3b82f6"}

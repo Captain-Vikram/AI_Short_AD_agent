@@ -60,11 +60,13 @@ def configure_logging(log_file: str = "run.log", level: int = logging.INFO, forc
     _CONFIGURED = True
 
 
-def get_logger(name: Optional[str] = None, log_file: str = "run.log", level: int = logging.INFO) -> logging.Logger:
+def get_logger(name: Optional[str] = None, log_file: Optional[str] = None, level: int = logging.INFO) -> logging.Logger:
     """Return a configured logger.
 
     The first call installs the shared console/file logging handlers.
     """
+    if log_file is None:
+        log_file = "run.log"
     configure_logging(log_file=log_file, level=level)
     return logging.getLogger(name)
 
