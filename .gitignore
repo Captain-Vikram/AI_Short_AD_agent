@@ -12,7 +12,7 @@ successful_ads.json
 marketing_strategy.json
 script.json
 remotion_props.json
-assets/
+/assets/
 outputs/
 node_modules/
 .DS_Store
