@@ -1,0 +1,173 @@
+{
+  "_comment": "Design system examples for VideoEnhanced template. Use these as reference when creating custom designs.",
+  
+  "tech_startup_modern": {
+    "design_name": "Tech Startup Modern",
+    "design_rationale": "Bold, sleek design for SaaS/tech companies. Uses electric blue accents on dark background for high contrast and energy.",
+    "bg_color": "#0c0f1a",
+    "accent_color": "#0ea5e9",
+    "text_color": "#f1f5f9",
+    "secondary_color": "#1e293b",
+    "layout": "fullscreen",
+    "animation_style": "dynamic",
+    "floating_elements": true,
+    "show_badge": true,
+    "text_position": "bottom",
+    "element_scale": 1.5,
+    "blur_strength": 10,
+    "audio_gain": 1.4
+  },
+
+  "lifestyle_vibrant": {
+    "design_name": "Lifestyle Vibrant",
+    "design_rationale": "Warm, energetic design for lifestyle/product brands. Coral/pink accents with floating elements for premium feel.",
+    "bg_color": "#faf5f0",
+    "accent_color": "#f1635c",
+    "text_color": "#1f2937",
+    "secondary_color": "#fed7aa",
+    "layout": "fullscreen",
+    "animation_style": "bold",
+    "floating_elements": true,
+    "show_badge": true,
+    "text_position": "bottom",
+    "element_scale": 1.8,
+    "blur_strength": 6,
+    "audio_gain": 1.2
+  },
+
+  "corporate_professional": {
+    "design_name": "Corporate Professional",
+    "design_rationale": "Clean, minimal design for B2B/corporate content. Subtle animations, centered text, high readability.",
+    "bg_color": "#f8fafc",
+    "accent_color": "#2563eb",
+    "text_color": "#0f172a",
+    "secondary_color": "#e2e8f0",
+    "layout": "fullscreen",
+    "animation_style": "subtle",
+    "floating_elements": false,
+    "show_badge": false,
+    "text_position": "center",
+    "element_scale": 0.8,
+    "blur_strength": 4,
+    "audio_gain": 1.3
+  },
+
+  "fitness_energetic": {
+    "design_name": "Fitness Energetic",
+    "design_rationale": "High-energy design for fitness/wellness brands. Vibrant orange/red with aggressive floating elements.",
+    "bg_color": "#0f0a05",
+    "accent_color": "#ff6b35",
+    "text_color": "#fffbf0",
+    "secondary_color": "#2d1810",
+    "layout": "fullscreen",
+    "animation_style": "bold",
+    "floating_elements": true,
+    "show_badge": true,
+    "text_position": "bottom",
+    "element_scale": 2.0,
+    "blur_strength": 12,
+    "audio_gain": 1.5
+  },
+
+  "educational_calm": {
+    "design_name": "Educational Calm",
+    "design_rationale": "Calm, informative design for educational content. Green accents, centered layout, subtle animations.",
+    "bg_color": "#f0fdf4",
+    "accent_color": "#10b981",
+    "text_color": "#064e3b",
+    "secondary_color": "#d1fae5",
+    "layout": "fullscreen",
+    "animation_style": "subtle",
+    "floating_elements": true,
+    "show_badge": true,
+    "text_position": "center",
+    "element_scale": 1.0,
+    "blur_strength": 5,
+    "audio_gain": 1.3
+  },
+
+  "luxury_minimal": {
+    "design_name": "Luxury Minimal",
+    "design_rationale": "Premium, sophisticated design. Dark background with gold accents, minimal floating elements, centered text.",
+    "bg_color": "#0a0e27",
+    "accent_color": "#d4af37",
+    "text_color": "#f5f5f5",
+    "secondary_color": "#1a1f3a",
+    "layout": "fullscreen",
+    "animation_style": "subtle",
+    "floating_elements": true,
+    "show_badge": false,
+    "text_position": "center",
+    "element_scale": 0.9,
+    "blur_strength": 8,
+    "audio_gain": 1.2
+  },
+
+  "gaming_intense": {
+    "design_name": "Gaming Intense",
+    "design_rationale": "Eye-catching design for gaming/entertainment. Purple/cyan cyberpunk aesthetic, bold animations.",
+    "bg_color": "#0d0221",
+    "accent_color": "#00d4ff",
+    "text_color": "#ffff00",
+    "secondary_color": "#3d0c66",
+    "layout": "fullscreen",
+    "animation_style": "bold",
+    "floating_elements": true,
+    "show_badge": true,
+    "text_position": "bottom",
+    "element_scale": 1.9,
+    "blur_strength": 14,
+    "audio_gain": 1.6
+  },
+
+  "ecommerce_sale": {
+    "design_name": "E-commerce Sale",
+    "design_rationale": "Urgency-driven design for e-commerce. Red/orange accents on dark, aggressive floating elements.",
+    "bg_color": "#1a1a1a",
+    "accent_color": "#ef4444",
+    "text_color": "#fefce8",
+    "secondary_color": "#4b5563",
+    "layout": "fullscreen",
+    "animation_style": "dynamic",
+    "floating_elements": true,
+    "show_badge": true,
+    "text_position": "bottom",
+    "element_scale": 1.6,
+    "blur_strength": 9,
+    "audio_gain": 1.4
+  },
+
+  "nonprofit_inclusive": {
+    "design_name": "Nonprofit Inclusive",
+    "design_rationale": "Warm, approachable design for nonprofits. Soft colors, accessible text, centered layout.",
+    "bg_color": "#f5f5dc",
+    "accent_color": "#d97706",
+    "text_color": "#2d2d2d",
+    "secondary_color": "#fde68a",
+    "layout": "fullscreen",
+    "animation_style": "subtle",
+    "floating_elements": false,
+    "show_badge": false,
+    "text_position": "center",
+    "element_scale": 1.0,
+    "blur_strength": 3,
+    "audio_gain": 1.3
+  },
+
+  "minimal_split_layout": {
+    "design_name": "Minimal Split",
+    "design_rationale": "Experimental split layout with image on left, text on right. Subtle animations.",
+    "bg_color": "#ffffff",
+    "accent_color": "#3b82f6",
+    "text_color": "#1f2937",
+    "secondary_color": "#e5e7eb",
+    "layout": "split",
+    "animation_style": "subtle",
+    "floating_elements": false,
+    "show_badge": true,
+    "text_position": "center",
+    "element_scale": 0.7,
+    "blur_strength": 2,
+    "audio_gain": 1.2
+  }
+}

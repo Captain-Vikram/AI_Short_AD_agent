@@ -1,0 +1,16 @@
+{
+  "bg_color": "#0f172a",
+  "accent_color": "#3b82f6",
+  "text_color": "#f8fafc",
+  "secondary_color": "#1e293b",
+  "layout": "fullscreen",
+  "animation_style": "dynamic",
+  "floating_elements": true,
+  "show_badge": true,
+  "text_position": "bottom",
+  "element_scale": 1.3,
+  "blur_strength": 8,
+  "audio_gain": 1.6,
+  "design_name": "High-Frequency Data Stream Analysis",
+  "design_rationale": "This design uses a deep navy/slate background to establish an authoritative, high-tech financial mood. The dynamic animation style and electric blue accent color mimic data streams and market momentum, perfectly matching the script's focus on AI infrastructure and bullish trading signals. Floating elements enhance the feeling of complex, real-time data analysis, while the bottom text placement keeps the visual field clear for dramatic graphics."
+}

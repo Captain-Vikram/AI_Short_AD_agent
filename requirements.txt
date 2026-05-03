@@ -1,0 +1,29 @@
+# Core orchestration
+crewai
+crewai-tools
+python-dotenv
+pydantic
+pydantic-settings
+rich
+tenacity
+
+# LLM providers
+openai
+google-genai
+
+# APIs and data access
+requests
+httpx
+apify-client
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+
+# Free text-to-speech
+edge-tts
+elevenlabs
+
+# Media helpers
+Pillow
+mutagen
