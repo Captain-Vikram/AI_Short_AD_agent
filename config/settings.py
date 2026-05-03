@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     GEMINI_TEXT_MODEL: str = "gemini-2.5-flash"
     GEMINI_IMAGE_MODEL: str = "nano-banana"
 
+    # OpenRouter
+    OPENROUTER_API_KEY: Optional[str] = None
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    OPENROUTER_MODEL: str = "google/gemini-2.0-flash-001"
+    OPENROUTER_REFERRER: Optional[str] = None
+    OPENROUTER_TITLE: Optional[str] = "Internship Agent Dev"
+
     # TTS
     TTS_PROVIDER: str = "edge-tts"
     TTS_FALLBACK: Optional[str] = "elevenlabs"

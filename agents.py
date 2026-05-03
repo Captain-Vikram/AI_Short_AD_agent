@@ -126,12 +126,52 @@ def _call_gemini_text(system: str, user: str, model: Optional[str] = None, tempe
     return text
 
 
-def _call_local_llm(system: str, user: str, model: Optional[str] = None, temperature: float = 0.2, max_tokens: int = 1024) -> str:
-    """Call a local OpenAI-compatible LLM (LM Studio) and return text output.
+def _call_openrouter_llm(system: str, user: str, model: Optional[str] = None, temperature: float = 0.2, max_tokens: int = 1024) -> str:
+    settings = _settings()
+    if not settings.OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY is not configured")
 
-    This is a best-effort, OpenAI-compatible `/chat/completions` caller; it
-    handles a few common response shapes.
-    """
+    url = f"{settings.OPENROUTER_BASE_URL.rstrip('/')}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    if settings.OPENROUTER_REFERRER:
+        headers["HTTP-Referer"] = settings.OPENROUTER_REFERRER
+    if settings.OPENROUTER_TITLE:
+        headers["X-Title"] = settings.OPENROUTER_TITLE
+
+    payload = {
+        "model": model or settings.OPENROUTER_MODEL,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+
+    @retry_with_backoff(
+        max_retries=3,
+        initial_backoff=2.0,
+        status_codes=[429, 500, 502, 503, 504],
+        exceptions=(httpx.HTTPStatusError, httpx.TimeoutException),
+        logger_name="agents",
+    )
+    def _do_post():
+        resp = httpx.post(url, json=payload, headers=headers, timeout=60)
+        resp.raise_for_status()
+        return resp
+
+    resp = _do_post()
+    text = _extract_text_from_llm_response(resp.json())
+    if not text:
+        raise RuntimeError("OpenRouter response did not contain any text")
+    return text
+
+
+def _call_local_llm(system: str, user: str, model: Optional[str] = None, temperature: float = 0.2, max_tokens: int = 1024) -> str:
+    """Call a local OpenAI-compatible LLM (LM Studio) and return text output."""
     settings = _settings()
     base = settings.LM_STUDIO_BASE_URL.rstrip("/")
     url = f"{base}/chat/completions"
@@ -149,8 +189,6 @@ def _call_local_llm(system: str, user: str, model: Optional[str] = None, tempera
         "max_tokens": max_tokens,
     }
     
-    logger = _logger()
-
     @retry_with_backoff(
         max_retries=2,
         initial_backoff=1.0,
@@ -163,21 +201,36 @@ def _call_local_llm(system: str, user: str, model: Optional[str] = None, tempera
         resp.raise_for_status()
         return resp
 
+    resp = _do_post()
+    text = _extract_text_from_llm_response(resp.json())
+    if text:
+        return text
+    raise RuntimeError("LM Studio response did not contain any text")
+
+
+def _call_llm(system: str, user: str, model: Optional[str] = None, temperature: float = 0.2, max_tokens: int = 1024) -> str:
+    """Unified LLM caller that dispatches to the configured provider."""
+    settings = _settings()
+    provider = settings.LLM_PROVIDER.lower()
+    logger = _logger()
+
     try:
-        resp = _do_post()
-        text = _extract_text_from_llm_response(resp.json())
-        if text:
-            return text
-        raise RuntimeError("LM Studio response did not contain any text")
+        if provider == "openrouter":
+            return _call_openrouter_llm(system, user, model=model, temperature=temperature, max_tokens=max_tokens)
+        elif provider == "gemini":
+            return _call_gemini_text(system, user, model=model or settings.GEMINI_TEXT_MODEL, temperature=temperature, max_tokens=max_tokens)
+        elif provider == "lmstudio":
+            return _call_local_llm(system, user, model=model, temperature=temperature, max_tokens=max_tokens)
+        else:
+            logger.warning("Unknown LLM_PROVIDER '%s'; falling back to LM Studio", provider)
+            return _call_local_llm(system, user, model=model, temperature=temperature, max_tokens=max_tokens)
     except Exception as exc:
-        logger.warning("LM Studio request failed after retries; falling back to Gemini text model %s. Error: %s", settings.GEMINI_TEXT_MODEL, exc)
-        if settings.GEMINI_API_KEY:
-            try:
-                return _call_gemini_text(system, user, model=settings.GEMINI_TEXT_MODEL, temperature=temperature, max_tokens=max_tokens)
-            except Exception as g_exc:
-                logger.error("Gemini fallback also failed: %s", g_exc)
-                raise RuntimeError(f"Both LM Studio and Gemini fallback failed. Gemini error: {g_exc}") from g_exc
-        raise RuntimeError("LM Studio is unavailable and GEMINI_API_KEY is not configured") from exc
+        logger.error("LLM call failed for provider %s: %s", provider, exc)
+        # Final fallback to Gemini if not already using it
+        if provider != "gemini" and settings.GEMINI_API_KEY:
+            logger.info("Falling back to Gemini text model...")
+            return _call_gemini_text(system, user, model=settings.GEMINI_TEXT_MODEL, temperature=temperature, max_tokens=max_tokens)
+        raise
 
 
 def _repair_json(text: str) -> str:
@@ -291,7 +344,7 @@ def run_strategist(ads_path: str = "output/successful_ads.json", out_path: str =
 
     system = "You are a helpful marketing analyst."
     logger.info("Strategist: sending prompt to LLM (sample size=%d)", sample_size)
-    resp_text = _call_local_llm(system, prompt)
+    resp_text = _call_llm(system, prompt)
     cleaned_json = _extract_json(resp_text)
 
     try:
@@ -337,7 +390,7 @@ def run_copywriter(marketing_strategy_path: str = "output/marketing_strategy.jso
     )
 
     system = "You are a concise scriptwriter for short marketing videos."
-    resp = _call_local_llm(system, prompt, max_tokens=2048)
+    resp = _call_llm(system, prompt, max_tokens=2048)
     cleaned_json = _extract_json(resp)
 
     # try to parse and validate
@@ -437,7 +490,7 @@ def run_designer(
         "Output ONLY valid JSON with a 'design' key containing the design specification. "
         "No commentary, no markdown, no code blocks. Just pure JSON."
     )
-    resp = _call_local_llm(system, prompt, max_tokens=2048)
+    resp = _call_llm(system, prompt, max_tokens=2048)
     cleaned_json = _extract_json(resp)
 
     payload: Any

@@ -62,6 +62,30 @@ def _create_placeholder_image(scene_idx: int, prompt: str, out_dir: str, width: 
     return out_path
 
 
+def _format_srt_time(seconds: float) -> str:
+    hrs = int(seconds // 3600)
+    mins = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    msecs = int((seconds * 1000) % 1000)
+    return f"{hrs:02d}:{mins:02d}:{secs:02d},{msecs:03d}"
+
+
+def _generate_srt(scenes: List[Dict[str, Any]], out_path: str) -> str:
+    lines = []
+    for i, scene in enumerate(scenes, 1):
+        start = scene["start"]
+        end = start + scene["duration"]
+        text = scene["narration"].strip()
+        lines.append(f"{i}")
+        lines.append(f"{_format_srt_time(start)} --> {_format_srt_time(end)}")
+        lines.append(text)
+        lines.append("")
+    content = "\n".join(lines)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return out_path
+
+
 def build_remotion_props(script_path: str = "script.json", assets_dir: str = "assets", remotion_props_path: str = "remotion_props.json") -> str:
     """Create image/audio assets from a validated script and write Remotion props."""
     settings = get_settings()
@@ -168,11 +192,16 @@ def build_remotion_props(script_path: str = "script.json", assets_dir: str = "as
         "height": video_height,
         "aspect_ratio": settings.VIDEO_ASPECT_RATIO,
     }
+    srt_path = os.path.join(assets_dir, "subtitles.srt")
+    _generate_srt(scenes_out, srt_path)
+    logger.info("Director: generated subtitles at %s", srt_path)
+
     remotion_props = {
         "scenes": scenes_out,
         "total_duration": current_time,
         "video": video_config,
         "asset_report": asset_report,
+        "subtitles": srt_path,
     }
     log_json(logger, "Director: remotion props", remotion_props)
     log_json(logger, "Director: asset report", asset_report)

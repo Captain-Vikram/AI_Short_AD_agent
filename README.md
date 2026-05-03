@@ -320,9 +320,15 @@ Note: Edge TTS is used as the default for quick testing and local development. T
 
 **Apify (Meta Ads Scraping):**
 
+**Important — do NOT commit secrets**: place real API tokens in `.env` (never push them to the repository).
+
 ```env
-APIFY_API_TOKEN=your_token_here
+# Apify scraping — add to your `.env` (DO NOT COMMIT the real token)
+APIFY_API_TOKEN=<YOUR_APIFY_API_TOKEN>
 APIFY_META_ADS_ACTOR_ID=whoareyouanas/meta-ad-scraper
+APIFY_META_ADS_COUNTRY=US
+APIFY_META_ADS_SEARCH_QUERY=trading
+APIFY_META_ADS_MAX_AGE_DAYS=30
 ```
 
 ### Configuration Priority
