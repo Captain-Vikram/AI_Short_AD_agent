@@ -1,0 +1,16 @@
+{
+  "total_scenes": 6,
+  "missing_images": [],
+  "placeholder_images": [],
+  "missing_audio": [],
+  "images_generated": 6,
+  "audio_generated": 6,
+  "gap_seconds": 0.2,
+  "min_duration_seconds": 1.0,
+  "image_retry_attempts": 3,
+  "video_width": 1080,
+  "video_height": 1920,
+  "video_aspect_ratio": "9:16",
+  "image_aspect_ratio": "9:16",
+  "image_size": null
+}

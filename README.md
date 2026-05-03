@@ -212,6 +212,55 @@ python agents.py all
 # (Render with: python agents.py render)
 ```
 
+### How the system is used
+
+The project is organized as a small pipeline of focused agents. Each agent is a single CLI command implemented in `agents.py` and targets a specific step in the workflow. The typical flow is:
+
+- Researcher -> Strategist -> Copywriter -> (optional Designer) -> Director -> Render
+
+Data flow and files:
+
+- `researcher` runs the Apify actor and writes `output/successful_ads.json`.
+- `strategist` reads scraped ads and writes `output/marketing_strategy.json`.
+- `copywriter` consumes the strategy (and optional Google Docs text) and produces a validated `output/script.json` array of scenes.
+- `designer` (optional) writes `output/video_design.json` and can emit a `remotion-app/src/VideoGenerated.tsx` file.
+- `director` generates images/audio and `output/remotion_props.json` and places assets in `output/assets`.
+- `render` (or `--render` after `director`) copies assets into the Remotion app public folder and invokes Remotion to create `remotion-app/out/video.mp4`.
+
+Common usage patterns:
+
+```bash
+# Full run with render
+python agents.py all --render
+
+# Run stages individually during development
+python agents.py researcher
+python agents.py strategist
+python agents.py copywriter
+python agents.py director --assets-dir output/assets --props output/remotion_props.json
+python agents.py render --props output/remotion_props.json --output remotion-app/out/video.mp4
+```
+
+Key CLI flags:
+
+- `--render` : when passed to `director` or `all`, triggers Remotion rendering after props are generated.
+- `--props`, `--assets-dir`, `--design`, `--remotion-app`, `--remotion-entry`, `--composition`, `--output`: override default paths used by the Director/Render steps.
+
+Providers & fallbacks:
+
+- LLMs: LM Studio (local) is used by default. If LM Studio fails and `GEMINI_API_KEY` is set, the code falls back to Gemini.
+- TTS: Edge TTS is the default (no key required). The pipeline supports ElevenLabs as a primary or fallback TTS provider — set `ELEVENLABS_API_KEY` and `TTS_PROVIDER=elevenlabs` to use it.
+
+Where assets are placed:
+
+- Working artifacts are written to `output/` during the pipeline.
+- Before rendering, assets are copied into `remotion-app/public/assets/` by the Remotion bridge so the React composition can reference them.
+
+Tips:
+
+- For privacy and quick tests, run LM Studio locally and keep `TTS_PROVIDER=edge-tts` (no cloud keys required).
+- For production quality, enable cloud providers (`GEMINI_API_KEY`, `APIFY_API_TOKEN`, `ELEVENLABS_API_KEY`) in your `.env`.
+
 ### Advanced Options
 
 ```bash
@@ -266,6 +315,8 @@ GEMINI_TEXT_MODEL=gemini-2.5-flash
 TTS_PROVIDER=edge-tts
 EDGE_TTS_VOICE=en-US-AriaNeural
 ```
+
+Note: Edge TTS is used as the default for quick testing and local development. The system is also fully compatible with ElevenLabs' API for higher-quality voice generation — set `ELEVENLABS_API_KEY` in your `.env` to enable ElevenLabs voices.
 
 **Apify (Meta Ads Scraping):**
 
