@@ -3,12 +3,31 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from apify_client import ApifyClient
 from config.settings import get_settings
 from src.utils import get_logger, log_json
+
+def _find_youtube_videos(client: ApifyClient, query: str, limit: int = 10) -> List[str]:
+    """Find up to `limit` YouTube video links for a search term in 3 pages of DuckDuckGo results."""
+    run = client.actor("johnvc/DuckDuckGo-Scraper-for-serp-rankings").call(
+        run_input={"query": f"{query} youtube", "max_pages": 3},
+        timeout_secs=300,
+    )
+    urls = []
+    for page in client.dataset(run["defaultDatasetId"]).list_items().items:
+        for result in page.get("organic_results") or []:
+            match = re.match(
+                r"https?://(?:(?:www\.|m\.)?youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)([\w-]{11})",
+                result.get("link") or "",
+            )
+            url = f"https://www.youtube.com/watch?v={match.group(1)}" if match else None
+            if url and url not in urls:
+                urls.append(url)
+    return urls[:limit]
 
 def run_multi_source_research(
     query: str,
@@ -30,7 +49,7 @@ def run_multi_source_research(
     # Mapping sources to potential Apify actors (placeholders for common ones)
     actor_map = {
         "meta": settings.APIFY_META_ADS_ACTOR_ID,
-        "youtube": "apify/youtube-scraper",
+        "youtube": "johnvc/youtube-shorts-api",
         "x": "quacker/twitter-url-scraper", # Example X actor
         "reddit": "apify/reddit-scraper"
     }
@@ -54,6 +73,15 @@ def run_multi_source_research(
                     "activeStatus": "active",
                     "maxConcurrency": 1
                 }
+            elif source == "youtube":
+                # The YouTube actor reads video links, not search terms,
+                # so find the videos with a DuckDuckGo search first
+                video_urls = _find_youtube_videos(client, query)
+                if not video_urls:
+                    logger.info("MarketResearch: no YouTube videos found for %s", query)
+                    results[source] = []
+                    continue
+                run_input = {"startUrls": [{"url": url} for url in video_urls]}
                 
             run = client.actor(actor_id).call(run_input=run_input, timeout_secs=300)
             dataset = client.dataset(run["defaultDatasetId"])
